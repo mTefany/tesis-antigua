@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monitoreo de humedad</title>
+
+  <!-- include Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.8.1/firebase-app.js"></script>
+
+  <!-- include only the Firebase features as you need -->
+  <script src="https://www.gstatic.com/firebasejs/8.8.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.8.1/firebase-database.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.3/jspdf.umd.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz"
+    crossorigin="anonymous"></script>
+
+  <script>
+    // Replace with your app config object
+    //Configracion de firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyAKy23WZonQ_dU9mtUAo9Of-mB3wse_4d8",
+      authDomain: "monitoreo-humedad.firebaseapp.com",
+      databaseURL: "https://monitoreo-humedad-default-rtdb.firebaseio.com",
+      projectId: "monitoreo-humedad",
+      storageBucket: "monitoreo-humedad.appspot.com",
+      messagingSenderId: "1090458914878",
+      appId: "1:1090458914878:web:37349fe759032e8341016f",
+      // measurementId: "G-SNX822KM08"
+    };
+
+
+    // Initialize firebase
+    firebase.initializeApp(firebaseConfig);
+
+    // Make auth and database references
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+  </script>
+
+  <!-- include highchartsjs to build the charts-->
+  <script src="https://code.highcharts.com/highcharts.js"></script>
+  <!-- include to use jquery-->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <!--include icons from fontawesome-->
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css"
+    integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+  <!-- include Gauges Javascript library-->
+  <script src="https://cdn.rawgit.com/Mikhus/canvas-gauges/gh-pages/download/2.1.7/all/gauge.min.js"></script>
+  <!--reference for favicon-->
+  <link rel="icon" type="image/png" href="favicon.png">
+  <!--reference a stylesheet-->
+  <link rel="stylesheet" type="text/css" href="style.css">
+
+
+</head>
+
+<body>
+
+  <!--NAVEGACION AL INICIAR SESIÓN-->
+  <div id="authentication-bar" style="display: none;">
+    <nav class="navbar bg-body-tertiary">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#nav-home">
+          <img src="img/humedadlogo.png" alt="Logo" width="40" height="34" class="d-inline-block align-text-top">
+          <span class="navtext"> Monitoreo de humedad de Finca Catagua.</span>
+        </a>
+        <span class="date-time">Última actualización: <span id="lastUpdate"></span></span>
+        <span id="authentication-status"></span><span id="user-details">e-mail</span>
+        <a href="/" class="btn btn-light" id="logout-link">
+          <img class="salirimg" src="img/salir.png" alt="Salir de la pagina"></a>
+      </div>
+    </nav>
+
+  </div>
+
+  <form id="login-form" class="login-form row" style="display: none;">
+    <img class="salirimg1" src="img/logo1.png" alt="Logo de monitoreo">
+    <div class="form-elements-container">
+      <img class="salirimg2" src="img/icono.png" alt="Icono">
+      <div class="mb-3">
+        <label class="for-label" for="input-email"><b>Email</b></label>
+        <input class="form-control" type="text" placeholder="Enter Username" id="input-email" required>
+      </div>
+      <div class="mb-3">
+        <label class="for-label" for="input-password"><b>Password</b></label>
+        <input class="form-control" type="password" placeholder="Enter Password" id="input-password" required>
+      </div>
+      <div class="mb-3">
+        <div class="d-grid gap-2">
+          <button class="botonlogin" type="submit" id="login-button"> <strong>Login</strong></button>
+          <p class="error-message" id="error-message"></p>
+        </div>
+      </div>
+    </div>
+  </form>
+
+
+
+  <!--CONTENT (SENSOR READINGS)-->
+  <div class="content-sign-in" id="content-sign-in" style="display: none;">
+    <nav>
+      <div class="nav nav-tabs" id="nav-tab" role="tablist">
+        <button class="nav-link active" id="nav-home-tab" data-bs-toggle="tab" data-bs-target="#nav-home" type="button"
+          role="tab" aria-controls="nav-home" aria-selected="true">Tarjetas</button>
+        <button class="nav-link" id="nav-profile-tab" data-bs-toggle="tab" data-bs-target="#nav-profile" type="button"
+          role="tab" aria-controls="nav-profile" aria-selected="false">Calibres</button>
+        <button class="nav-link" id="nav-contact-tab" data-bs-toggle="tab" data-bs-target="#nav-contact" type="button"
+          role="tab" aria-controls="nav-contact" aria-selected="false">Estadistica</button>
+        <button class="nav-link" id="nav-data-tab" data-bs-toggle="tab" data-bs-target="#nav-data" type="button"
+          role="tab" aria-controls="nav-data" aria-selected="false">Ver datos</button>
+
+      </div>
+    </nav>
+    <div class="container informacion">
+      <div class="tab-content" id="nav-tabContent">
+        <div class="tab-pane fade show active" id="nav-home" role="tabpanel" aria-labelledby="nav-home-tab">
+          <div id="cards-div">
+            <div class="cards">
+              <!--SENSOR1VALUE-->
+              <div class="card">
+                <center>
+                  <p><i class="fas fa-tint" style="color:#059e8a;"></i> Sensor Zona 1</p>
+                  <p><span class="reading"><span id="sen1"></span> &percnt;</span></p>
+                </center>
+                <img class="zonas" src="img/Zona1.jpeg" alt="Zona 1">
+              </div>
+              <!--SENSORZONA2-->
+              <div class="card">
+                <center>
+                  <p><i class="fas fa-tint" style="color:#00add6;"></i> Senzor Zona 2</p>
+                  <p><span class="reading"><span id="sen2"></span> &percnt;</span></p>
+                </center>
+                <img class="zonas" src="img/Zona2.jpeg" alt="Zona 2">
+              </div>
+              <!--PRESSURE-->
+              <div class="card">
+                <center>
+                  <p><i class="fas fa-tint" style="color:#e1e437;"></i> Sensor Zona 3</p>
+                  <p><span class="reading"><span id="sen3"></span> &percnt;</span></p>
+                </center>
+                <img class="zonas" src="img/Zona3.jpeg" alt="Zona 3">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tab-content" id="nav-tabContent">
+        <div class="tab-pane fade" id="nav-profile" role="tabpanel" aria-labelledby="nav-profile-tab">
+          <!--GAUGES-->
+          <div id="gauges-div">
+            <div class="cards">
+              <!--SENSOR ZONA 1-->
+              <div class="card">
+                <p><i class="fas fa-tint" style="color:#e0b57c;"></i> Zona 1</p>
+                <canvas id="gauge-sen1"></canvas>
+                <img class="zonas" src="img/Zona1.jpeg" alt="Zona 1">
+              </div>
+              <!--SENSOR ZONA 2-->
+              <div class="card">
+
+                <p><i class="fas fa-tint" style="color:#54db5b;"></i> Zona 2</p>
+                <canvas id="gauge-sen2"></canvas>
+                <img class="zonas" src="img/Zona2.jpeg" alt="Zona 2">
+              </div>
+              <!--SENSOR ZONA 3-->
+              <div class="card">
+                <p><i class="fas fa-tint" style="color:#f0eba4;"></i> Zona 3</p>
+                <canvas id="gauge-sen3"></canvas>
+                <img class="zonas" src="img/Zona3.jpeg" alt="Zona 3">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-content" id="nav-tabContent">
+      <div class="tab-pane fade" id="nav-contact" role="tabpanel" aria-labelledby="nav-contact-tab">
+        <!--CHARTS-->
+        <div id="charts-div">
+          <div>
+            <p> Number of readings: <input type="number" id="charts-range"></p>
+          </div>
+          <!--SENSOR1VALUE-CHART-->
+          <div class="cards">
+            <div class="card">
+              <p><i class="fas fa-tint" style="color:#2f9938;"></i> SENSOR ZONA 1 CHART</p>
+              <div id="chart-sensor1value" class="chart-container"></div>
+            </div>
+          </div>
+          <!--SENSOR2VALUE-CHART-->
+          <div class="cards">
+            <div class="card">
+              <p><i class="fas fa-tint" style="color:#00add6;"></i> SENSOR ZONA 2 CHART</p>
+              <div id="chart-sensor2value" class="chart-container"></div>
+            </div>
+          </div>
+          <!--PRESSURE-CHART-->
+          <div class="cards">
+            <div class="card">
+              <p><i class="fas fa-tint" style="color:#e1e437;"></i> SENSOR ZONA 3 CHART</p>
+              <div id="chart-sensor3value" class="chart-container"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-content" id="nav-tabContent">
+    <div class="tab-pane fade" id="nav-data" role="tabpanel" aria-labelledby="nav-data-tab">
+      
+        <!--TABLE WITH ALL DATA-->
+        <div class="card" id="table-container">
+          <table id="readings-table">
+            <tr id="theader">
+              <th>Timestamp</th>
+              <th>Sensor Zona 1</th>
+              <th>Sensor Zona 2</th>
+              <th>Sensor Zona 3</th>
+            </tr>
+            <tbody id="tbody">
+            </tbody>
+          </table>
+          <p><button class="botonlogin" id="load-data">Mas resultados...</button></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </div>
+  <!--INCLUDE JS FILES-->
+  <script src="../scripts/auth.js"></script>
+  <script src="../scripts/charts-definition.js"></script>
+  <script src="../scripts/gauges-definition.js"></script>
+  <script src="../scripts/index.js"></script>
+
+</body>
+
+</html>
